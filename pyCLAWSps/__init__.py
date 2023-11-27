@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 from typing import Tuple
 import serial
+from serial.serialutil import SerialException
 import serial.tools.list_ports
 import binascii
 import numpy as np
@@ -205,26 +206,25 @@ class CLAWSps:
             print("An error has occured")
 
     def _checkerror(self, rx):
-        # TODO: Make this nicer by defining proper exceptions
-        # Error Commands
+        # Raise exceptions indicating errors as described in manual
         if rx == b"0001":
-            print("UART communication error: Parity error, overrun error, framing error")
-        if rx == b"0002":
-            print(
+            raise SerialException("UART communication error: Parity error, overrun error, framing error")
+        elif rx == b"0002":
+            raise SerialException(
                 "Timeout error: This indicates that the self.CR has not been received within 1000ms of receiving the self.STX. The received packet is discarded."
             )
-        if rx == b"0003":
-            print(
+        elif rx == b"0003":
+            raise SerialException(
                 "Syntax error: The beginning of the received command is other than self.STX, which indicates the length of the command or 256byte."
             )
-        if rx == b"0004":
-            print("Checksum error: This indicates that the checksum does not match")
-        if rx == b"0005":
-            print("Command error: This indicates that it is an undefined command")
-        if rx == b"0006":
-            print("Parameter error: This indicates that the codes other than ASCII code(0~F) is in the parameter")
-        if rx == b"0007":
-            print(
+        elif rx == b"0004":
+            raise SerialException("Checksum error: This indicates that the checksum does not match")
+        elif rx == b"0005":
+            raise SerialException("Command error: This indicates that it is an undefined command")
+        elif rx == b"0006":
+            raise SerialException("Parameter error: This indicates that the codes other than ASCII code(0~F) is in the parameter")
+        elif rx == b"0007":
+            raise SerialException(
                 "Parameter size error: This indicates that the data length of the parameter is outside the specified length"
             )
 
