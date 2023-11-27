@@ -70,17 +70,14 @@ class CLAWSps:
             raise e
 
     def _write(self, command):
-        data = command.encode()
-        # print("command %s encoded %s" % (command, data))
+        # Write to serial device
         return self._ser.write(command.encode())
 
     def _read(self, length):
+        # Read from serial device
         rx = self._ser.read(length)
-        if length == len(rx):
-            procd = [c for c in rx]
-            # print("rec: %s" % procd)
-        else:
-            print("short read %d vs %d" % (len(rx), length))
+        if length != len(rx):  # Not sure if this is really needed, but keep for now
+            print(f"Short read: {len(rx)} vs {length}")
         return rx
 
     def _convert(self, command):
@@ -91,15 +88,16 @@ class CLAWSps:
         return (command_str, sum_command)
 
     def _checksum(self, sum_command, sum_voltage):
-        # CHECKSUM CALCULATION
-        CS = hex(int(self._STX, 16) + sum_command + int(self._ETX, 16) + sum_voltage)
-        CS = CS.lstrip("0x")
-        CS = CS.upper()
-        CS = CS[-2:]
-        CS_str, CS_sum = self._convert(CS)
-        return (CS_str, CS_sum)
+        # Calculate checksum
+        cs = hex(int(self._STX, 16) + sum_command + int(self._ETX, 16) + sum_voltage)
+        cs = cs.lstrip("0x")
+        cs = cs.upper()
+        cs = cs[-2:]
+        cs_str, cs_sum = self._convert(cs)
+        return (cs_str, cs_sum)
 
     def _checkerror(self, rx):
+        # TODO: Make this nicer by defining proper exceptions
         # Error Commands
         if rx == b"0001":
             print("UART communication error: Parity error, overrun error, framing error")
