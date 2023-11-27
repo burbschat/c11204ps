@@ -120,59 +120,31 @@ class CLAWSps:
                 "Parameter size error: This indicates that the data length of the parameter is outside the specified length"
             )
 
-    def _checkstatus(self, rx):
+    def parse_status(self, rx) -> dict:
+        # TODO: define a get_status function to just get status dict, no
+        # arguments required. Do this when cleaning up the funcions calling
+        # this funciton.
+
         # Status information
-        status = int(rx[4:8])
-        print("Status: %04x" % status)
-        if status & 1:
-            print("High Voltage Output      :   ON")
-        else:
-            print("High Voltage Output      :   OFF")
+        s = int(rx[4:8])
 
-        if status & 2:
-            print("Over-current protection  :   Working protection")
-        else:
-            print("Over-current protection  :   Not working")
+        print("Status: %04x" % s)
 
-        if status & 4:
-            print("Current Value            :   Outside Specifications")
-        else:
-            print("Current Value            :   Within Specifications")
+        # TODO: Look up status codes and check if the namings are appropriate
+        d = {
+                "high_voltage_output" : bool(s & 1),
+                "overcurrent_protection":  bool(s & 2),
+                "current_in_spec": not bool(s & 4),
+                "MPPC_temp_sensor_connected": bool(s & 8),
+                "MPPC_temp_sensor_in_spec": not bool(s & 0x10),
+                "temperature_correction": bool(s & 0x40),
+                "automatic_restore_enabled": bool(s & 0x400),
+                "voltage_suppression": bool(s & 0x800),
+                "output_voltage_control": bool(s & 0x1000),
+                "voltage_stable": bool(s & 0x4000)
+                }
 
-        if status & 8:
-            print("MPPC temperature sensor  :   Connected")
-        else:
-            print("MPPC temperature sensor  :   Disconnected")
-
-        if status & 0x10:
-            print("MPPC temperature sensor  :   Outside Specifications")
-        else:
-            print("MPPC temperature sensor  :   Within Specifications")
-
-        if status & 0x40:
-            print("Temperature Correction   :   Effectiveness")
-        else:
-            print("Temperature Correction   :   Invalid")
-
-        if status & 0x400:
-            print("Automatic restoration    :   Restoration")
-        else:
-            print("Automatic restoration    :   Not working")
-
-        if status & 0x800:
-            print("Voltage suppression      :   Suppression")
-        else:
-            print("Voltage suppression   :   Not working")
-
-        if status & 0x1000:
-            print("Output voltage control   :   Control")
-        else:
-            print("Output voltage control   :   Not control")
-
-        if status & 0x4000:
-            print("Voltage stability        :   Stable")
-        else:
-            print("Voltage stability        :   Unstable")
+        print(d)
 
     ##### COMMANDS OF POWER SUPPLY ####
 
@@ -207,7 +179,7 @@ class CLAWSps:
             volt_out = int(rx[12:16], 16) * self._voltage_conversion
             mA_out = int(rx[16:20], 16) * self._current_conversion
 
-            self._checkstatus(rx)
+            self.parse_status(rx)
             print("High Voltage Output      :   {} V".format(volt_out))
             print("Output current           :   {} mA".format(mA_out))
         elif rx[1:4] == b"hxx":
@@ -403,7 +375,7 @@ class CLAWSps:
         tx = self._write(command_x)
         rx = self._read(8)
         if rx[1:4] == b"hgs":
-            self._checkstatus(rx)
+            self.parse_status(rx)
         elif rx[1:4] == b"hxx":
             return self._checkerror(rx[4:8])
         else:
