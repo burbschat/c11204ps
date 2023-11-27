@@ -26,13 +26,12 @@ import serial
 from serial.serialutil import SerialException
 import serial.tools.list_ports
 import binascii
-import numpy as np
 
 
 class CLAWSps:
     # NOTE - The applied voltage can be set upto 90 V by c11204 power supply.
     # Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
-    def __init__(self, serial_port:Tuple[str, int] = 0, max_voltage:float = 60, min_voltage:float = 40):
+    def __init__(self, serial_port: Tuple[str, int] = 0, max_voltage: float = 60, min_voltage: float = 40):
         # Internally used fixed values
         self._STX = "02"  # start of text
         self._ETX = "03"  # end of text
@@ -100,7 +99,7 @@ class CLAWSps:
         cs_str, cs_sum = self._convert(cs)
         return (cs_str, cs_sum)
 
-    def _send_serial_command(self, command:str, value=0, response_length:int = 8):
+    def _send_serial_command(self, command: str, value=0, response_length: int = 8):
         self._ser.flushInput()
         self._ser.flushOutput()
         command_str, sum_command = self._convert(command)
@@ -116,8 +115,10 @@ class CLAWSps:
         tx = self._write(command_x)
         rx = self._read(response_length)
         return rx
-       
-    def _send_serial_command_checkresp(self, command:str, value=0, command_response:Tuple[str, None] = None, response_length:int = 8):
+
+    def _send_serial_command_checkresp(
+        self, command: str, value=0, command_response: Tuple[str, None] = None, response_length: int = 8
+    ):
         # Additionally check the response and raise an error accordingly if
         # some error is reported.
         if command_response is None:
@@ -135,7 +136,7 @@ class CLAWSps:
     def setHVOff(self):
         "Set power supply High Voltage OFF"
         return self._send_serial_command_checkresp("HOF")
-       
+
     def setHVOn(self):
         "Set power supply High Voltage ON"
         return self._send_serial_command_checkresp("HON")
@@ -143,7 +144,7 @@ class CLAWSps:
     def reset(self):
         "Reset the power supply"
         return self._send_serial_command_checkresp("HRE")
-       
+
     def setVoltage(self, voltage_dec):
         """
         Sets the high voltage output to the voltage specified.
@@ -155,9 +156,13 @@ class CLAWSps:
                     Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
         """
         if voltage_dec > self.max_voltage:
-            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self.min_voltage}, {self.max_voltage}). Voltage is too high.")
+            raise ValueError(
+                f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self.min_voltage}, {self.max_voltage}). Voltage is too high."
+            )
         elif voltage_dec < self.min_voltage:
-            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self.min_voltage}, {self.max_voltage}). Voltage is too low.")
+            raise ValueError(
+                f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self.min_voltage}, {self.max_voltage}). Voltage is too low."
+            )
         else:
             voltage_conv = float(voltage_dec) / self._voltage_conversion
             value = int(round(voltage_conv))
@@ -172,7 +177,7 @@ class CLAWSps:
             Voltage in Volts
         """
         rx = self._send_serial_command_checkresp("HGV")
-        voltage = (int(rx[4:8], 16) * self._voltage_conversion)
+        voltage = int(rx[4:8], 16) * self._voltage_conversion
         return voltage
 
     def getCurrent(self):
@@ -184,7 +189,7 @@ class CLAWSps:
             Current in mA
         """
         rx = self._send_serial_command_checkresp("HGC")
-        current = (int(rx[4:8], 16) * self._current_conversion)
+        current = int(rx[4:8], 16) * self._current_conversion
         return current
 
     def get_power(self):
@@ -227,27 +232,29 @@ class CLAWSps:
         elif rx == b"0005":
             raise SerialException("Command error: This indicates that it is an undefined command")
         elif rx == b"0006":
-            raise SerialException("Parameter error: This indicates that the codes other than ASCII code(0~F) is in the parameter")
+            raise SerialException(
+                "Parameter error: This indicates that the codes other than ASCII code(0~F) is in the parameter"
+            )
         elif rx == b"0007":
             raise SerialException(
                 "Parameter size error: This indicates that the data length of the parameter is outside the specified length"
             )
 
-    def parse_status(self, status:int) -> dict:
+    def parse_status(self, status: int) -> dict:
         # Use shorthand to make the following code less convoluted
         s = status
 
         # TODO: Look up status codes and check if the namings are appropriate
         status_dict = {
-                "high_voltage_output" : bool(s & 1),
-                "overcurrent_protection":  bool(s & 2),
-                "current_in_spec": not bool(s & 4),
-                "MPPC_temp_sensor_connected": bool(s & 8),
-                "MPPC_temp_sensor_in_spec": not bool(s & 0x10),
-                "temperature_correction": bool(s & 0x40),
-                "automatic_restore_enabled": bool(s & 0x400),
-                "voltage_suppression": bool(s & 0x800),
-                "output_voltage_control": bool(s & 0x1000),
-                "voltage_stable": bool(s & 0x4000)
-                }
+            "high_voltage_output": bool(s & 1),
+            "overcurrent_protection": bool(s & 2),
+            "current_in_spec": not bool(s & 4),
+            "MPPC_temp_sensor_connected": bool(s & 8),
+            "MPPC_temp_sensor_in_spec": not bool(s & 0x10),
+            "temperature_correction": bool(s & 0x40),
+            "automatic_restore_enabled": bool(s & 0x400),
+            "voltage_suppression": bool(s & 0x800),
+            "output_voltage_control": bool(s & 0x1000),
+            "voltage_stable": bool(s & 0x4000),
+        }
         return status_dict
