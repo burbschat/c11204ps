@@ -43,7 +43,7 @@ class CLAWSps:
 
         # Internally used variables
         self._ser = 0  # Reference to serial port
-        user_def_serial = serial_port  # Use a more meaningful name for this context
+        user_def_sp = serial_port  # Use a more meaningful name for this context
 
         # User defined variables
         self.max_voltage = max_voltage  # Upper high voltage limit in Volts
@@ -54,19 +54,19 @@ class CLAWSps:
         if len(ports) == 0:
             raise SerialException("No serial ports found. Check device connections.")
 
-        if type(user_def_serial) is int:
+        if type(user_def_sp) is int:
             # Choose nth port found of name matching what is expected for the ps
             ps_ports = [p for p in ports if ("CP210" in p[1]) or ("Q_MPPC_CTL" in p[1])]
-            prt_name = ps_ports[user_def_serial][0]
-        elif type(user_def_serial) is str:
-            prt_name = user_def_serial  # Choose based on name like `/dev/ttyUSB0`
+            prt_name = ps_ports[user_def_sp][0]
+        elif type(user_def_sp) is str:
+            prt_name = user_def_sp  # Choose based on name like `/dev/ttyUSB0`
 
         try:
             self._ser = serial.Serial(prt_name)  # open serial port
             self._ser.baudrate = 38400  # set baudrate
-            self._ser.parity = serial_port.PARITY_EVEN  # set parity
-            self._ser.stopbits = serial_port.STOPBITS_ONE
-            self._ser.bytesize = serial_port.EIGHTBITS
+            self._ser.parity = serial.PARITY_EVEN  # set parity
+            self._ser.stopbits = serial.STOPBITS_ONE
+            self._ser.bytesize = serial.EIGHTBITS
             self._ser.timeout = 2.0
             print(f"Setup finished for serial prt '{self._ser.name}'")  # Confirm the used serial port
         except Exception as e:
