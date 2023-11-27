@@ -22,7 +22,7 @@ from serial.serialutil import SerialException
 import serial.tools.list_ports
 
 
-class CLAWSps:
+class C11204PS:
     """Class defining an interface to a Hamamatsu c11204-01/02 power supply as
     used with the CLAWS detectors.
 
