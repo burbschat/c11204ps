@@ -157,11 +157,10 @@ class CLAWSps:
             NOTE -  The applied voltage can be set upto 90 V by c11204 power supply.
                     Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
         """
-        # TODO: raise errors accordingly
         if voltage_dec > self.max_voltage:
-            print("Voltage is too high")
+            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self._min_voltage}, {self.max_voltage}). Voltage is too high.")
         elif voltage_dec < self._min_voltage:
-            print("Voltage is too low")
+            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self._min_voltage}, {self.max_voltage}). Voltage is too low.")
         else:
             voltage_conv = float(voltage_dec) / self._voltage_conversion
             value = int(round(voltage_conv))
