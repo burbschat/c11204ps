@@ -32,7 +32,7 @@ import numpy as np
 class CLAWSps:
     # NOTE - The applied voltage can be set upto 90 V by c11204 power supply.
     # Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
-    def __init__(self, serial:Tuple[str, int], max_voltage:float = 60):
+    def __init__(self, serial_port:Tuple[str, int] = 0, max_voltage:float = 60):
         # Internally used fixed values
         self._STX = "02"  # start of text
         self._ETX = "03"  # end of text
@@ -43,7 +43,7 @@ class CLAWSps:
 
         # Internally used variables
         self._ser = 0  # Reference to serial port
-        user_def_serial = serial  # Use a more meaningful name for this context
+        user_def_serial = serial_port  # Use a more meaningful name for this context
 
         # User defined variables
         self.max_voltage = max_voltage  # Upper high voltage limit in Volts
@@ -60,11 +60,11 @@ class CLAWSps:
             prt_name = user_def_serial  # Choose based on name like `/dev/ttyUSB0`
 
         try:
-            self._ser = serial.Serial(prt_name)  # open serial port
+            self._ser = serial_port.Serial(prt_name)  # open serial port
             self._ser.baudrate = 38400  # set baudrate
-            self._ser.parity = serial.PARITY_EVEN  # set parity
-            self._ser.stopbits = serial.STOPBITS_ONE
-            self._ser.bytesize = serial.EIGHTBITS
+            self._ser.parity = serial_port.PARITY_EVEN  # set parity
+            self._ser.stopbits = serial_port.STOPBITS_ONE
+            self._ser.bytesize = serial_port.EIGHTBITS
             self._ser.timeout = 2.0
             print(f"Setup finished for serial prt '{self._ser.name}'")  # Confirm the used serial port
         except Exception as e:
