@@ -96,125 +96,6 @@ class CLAWSps:
         cs_str, cs_sum = self._convert(cs)
         return (cs_str, cs_sum)
 
-    def _checkerror(self, rx):
-        # TODO: Make this nicer by defining proper exceptions
-        # Error Commands
-        if rx == b"0001":
-            print("UART communication error: Parity error, overrun error, framing error")
-        if rx == b"0002":
-            print(
-                "Timeout error: This indicates that the self.CR has not been received within 1000ms of receiving the self.STX. The received packet is discarded."
-            )
-        if rx == b"0003":
-            print(
-                "Syntax error: The beginning of the received command is other than self.STX, which indicates the length of the command or 256byte."
-            )
-        if rx == b"0004":
-            print("Checksum error: This indicates that the checksum does not match")
-        if rx == b"0005":
-            print("Command error: This indicates that it is an undefined command")
-        if rx == b"0006":
-            print("Parameter error: This indicates that the codes other than ASCII code(0~F) is in the parameter")
-        if rx == b"0007":
-            print(
-                "Parameter size error: This indicates that the data length of the parameter is outside the specified length"
-            )
-
-    def parse_status(self, rx) -> dict:
-        # TODO: define a get_status function to just get status dict, no
-        # arguments required. Do this when cleaning up the funcions calling
-        # this funciton.
-
-        # Status information
-        s = int(rx[4:8])
-
-        print("Status: %04x" % s)
-
-        # TODO: Look up status codes and check if the namings are appropriate
-        d = {
-                "high_voltage_output" : bool(s & 1),
-                "overcurrent_protection":  bool(s & 2),
-                "current_in_spec": not bool(s & 4),
-                "MPPC_temp_sensor_connected": bool(s & 8),
-                "MPPC_temp_sensor_in_spec": not bool(s & 0x10),
-                "temperature_correction": bool(s & 0x40),
-                "automatic_restore_enabled": bool(s & 0x400),
-                "voltage_suppression": bool(s & 0x800),
-                "output_voltage_control": bool(s & 0x1000),
-                "voltage_stable": bool(s & 0x4000)
-                }
-
-        print(d)
-
-    ##### COMMANDS OF POWER SUPPLY ####
-
-    def help(self):
-        print("printMonitorInfo() - Prints information on the power supply status, voltage (V) and current (mA) values")
-        print("getPowerInfo() - Returns the power supply voltage (V) and current (mA) values as tuple")
-        print("setHVOff() - Set power supply High Voltage OFF")
-        print("setHVOn() - Set power supply High Voltage ON")
-        print("reset()  - Reset the power supply")
-        print("setVoltage(voltage_dec) - Sets the high voltage output to the voltage specified (V)")
-        print("getVoltage() - Returns power supply voltage in Volts")
-        print("getCurrent() - Returns power supply current in mA")
-        print(
-            "printStatus() - Prints status information on the power supply (similar to getMonitorInfo()) but without voltage and current values"
-        )
-        print("close() - Close serial port")
-        print("help() - This help")
-
-    def printMonitorInfo(self):
-        "Prints information on the power supply status, voltage and current values"
-        self._ser.flushInput()
-        self._ser.flushOutput()
-        command_str, sum_command = self._convert("HPO")
-        CS_str, CS_sum = self._checksum(sum_command, 0)
-
-        # FINAL COMMAND
-        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
-        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
-        tx = self._write(command_x)
-        rx = self._read(28)
-        if rx[1:4] == b"hpo":
-            volt_out = int(rx[12:16], 16) * self._voltage_conversion
-            mA_out = int(rx[16:20], 16) * self._current_conversion
-
-            self.parse_status(rx)
-            print("High Voltage Output      :   {} V".format(volt_out))
-            print("Output current           :   {} mA".format(mA_out))
-        elif rx[1:4] == b"hxx":
-            return self._checkerror(rx[4:8])
-        else:
-            print("An error has occured")
-
-    def getPowerInfo(self):
-        """
-        Returns the power supply voltage and current values.
-        Returns
-        -------
-        tuple
-            (voltage, current)
-            Voltage in Volts and current in mA.
-        """
-        self._ser.flushInput()
-        self._ser.flushOutput()
-        command_str, sum_command = self._convert("HPO")
-        CS_str, CS_sum = self._checksum(sum_command, 0)
-
-        # FINAL COMMAND
-        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
-        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
-        tx = self._write(command_x)
-        rx = self._read(28)
-        if rx[1:4] == b"hpo":
-            volt_out = int(rx[12:16], 16) * self._voltage_conversion
-            mA_out = int(rx[16:20], 16) * self._current_conversion
-            return (volt_out, mA_out)
-        elif rx[1:4] == b"hxx":
-            return self._checkerror(rx[4:8])
-        else:
-            print("An error has occured")
-
     def setHVOff(self):
         "Set power supply High Voltage OFF"
         self._ser.flushInput()
@@ -384,3 +265,124 @@ class CLAWSps:
     def close(self):
         "Close self.serial port"
         self._ser.close()
+
+    def _checkerror(self, rx):
+        # TODO: Make this nicer by defining proper exceptions
+        # Error Commands
+        if rx == b"0001":
+            print("UART communication error: Parity error, overrun error, framing error")
+        if rx == b"0002":
+            print(
+                "Timeout error: This indicates that the self.CR has not been received within 1000ms of receiving the self.STX. The received packet is discarded."
+            )
+        if rx == b"0003":
+            print(
+                "Syntax error: The beginning of the received command is other than self.STX, which indicates the length of the command or 256byte."
+            )
+        if rx == b"0004":
+            print("Checksum error: This indicates that the checksum does not match")
+        if rx == b"0005":
+            print("Command error: This indicates that it is an undefined command")
+        if rx == b"0006":
+            print("Parameter error: This indicates that the codes other than ASCII code(0~F) is in the parameter")
+        if rx == b"0007":
+            print(
+                "Parameter size error: This indicates that the data length of the parameter is outside the specified length"
+            )
+
+    def parse_status(self, rx) -> dict:
+        # TODO: define a get_status function to just get status dict, no
+        # arguments required. Do this when cleaning up the funcions calling
+        # this funciton.
+
+        # Status information
+        s = int(rx[4:8])
+
+        print("Status: %04x" % s)
+
+        # TODO: Look up status codes and check if the namings are appropriate
+        d = {
+                "high_voltage_output" : bool(s & 1),
+                "overcurrent_protection":  bool(s & 2),
+                "current_in_spec": not bool(s & 4),
+                "MPPC_temp_sensor_connected": bool(s & 8),
+                "MPPC_temp_sensor_in_spec": not bool(s & 0x10),
+                "temperature_correction": bool(s & 0x40),
+                "automatic_restore_enabled": bool(s & 0x400),
+                "voltage_suppression": bool(s & 0x800),
+                "output_voltage_control": bool(s & 0x1000),
+                "voltage_stable": bool(s & 0x4000)
+                }
+
+        print(d)
+
+    ##### COMMANDS OF POWER SUPPLY ####
+
+    def help(self):
+        print("printMonitorInfo() - Prints information on the power supply status, voltage (V) and current (mA) values")
+        print("getPowerInfo() - Returns the power supply voltage (V) and current (mA) values as tuple")
+        print("setHVOff() - Set power supply High Voltage OFF")
+        print("setHVOn() - Set power supply High Voltage ON")
+        print("reset()  - Reset the power supply")
+        print("setVoltage(voltage_dec) - Sets the high voltage output to the voltage specified (V)")
+        print("getVoltage() - Returns power supply voltage in Volts")
+        print("getCurrent() - Returns power supply current in mA")
+        print(
+            "printStatus() - Prints status information on the power supply (similar to getMonitorInfo()) but without voltage and current values"
+        )
+        print("close() - Close serial port")
+        print("help() - This help")
+
+    def printMonitorInfo(self):
+        "Prints information on the power supply status, voltage and current values"
+        self._ser.flushInput()
+        self._ser.flushOutput()
+        command_str, sum_command = self._convert("HPO")
+        CS_str, CS_sum = self._checksum(sum_command, 0)
+
+        # FINAL COMMAND
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
+        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
+        tx = self._write(command_x)
+        rx = self._read(28)
+        if rx[1:4] == b"hpo":
+            volt_out = int(rx[12:16], 16) * self._voltage_conversion
+            mA_out = int(rx[16:20], 16) * self._current_conversion
+
+            self.parse_status(rx)
+            print("High Voltage Output      :   {} V".format(volt_out))
+            print("Output current           :   {} mA".format(mA_out))
+        elif rx[1:4] == b"hxx":
+            return self._checkerror(rx[4:8])
+        else:
+            print("An error has occured")
+
+    def getPowerInfo(self):
+        """
+        Returns the power supply voltage and current values.
+        Returns
+        -------
+        tuple
+            (voltage, current)
+            Voltage in Volts and current in mA.
+        """
+        self._ser.flushInput()
+        self._ser.flushOutput()
+        command_str, sum_command = self._convert("HPO")
+        CS_str, CS_sum = self._checksum(sum_command, 0)
+
+        # FINAL COMMAND
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
+        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
+        tx = self._write(command_x)
+        rx = self._read(28)
+        if rx[1:4] == b"hpo":
+            volt_out = int(rx[12:16], 16) * self._voltage_conversion
+            mA_out = int(rx[16:20], 16) * self._current_conversion
+            return (volt_out, mA_out)
+        elif rx[1:4] == b"hxx":
+            return self._checkerror(rx[4:8])
+        else:
+            print("An error has occured")
+
+
