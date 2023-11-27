@@ -32,7 +32,7 @@ import numpy as np
 class CLAWSps:
     # NOTE - The applied voltage can be set upto 90 V by c11204 power supply.
     # Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
-    def __init__(self, serial_port:Tuple[str, int] = 0, max_voltage:float = 60):
+    def __init__(self, serial_port:Tuple[str, int] = 0, max_voltage:float = 60, min_voltage:float = 40):
         # Internally used fixed values
         self._STX = "02"  # start of text
         self._ETX = "03"  # end of text
@@ -47,7 +47,7 @@ class CLAWSps:
 
         # User defined variables
         self.max_voltage = max_voltage  # Upper high voltage limit in Volts
-        self._min_voltage = 40
+        self.min_voltage = min_voltage
 
         # Open serial port
         ports = list(serial.tools.list_ports.comports())  # Get available ports
@@ -155,9 +155,9 @@ class CLAWSps:
                     Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
         """
         if voltage_dec > self.max_voltage:
-            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self._min_voltage}, {self.max_voltage}). Voltage is too high.")
-        elif voltage_dec < self._min_voltage:
-            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self._min_voltage}, {self.max_voltage}). Voltage is too low.")
+            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self.min_voltage}, {self.max_voltage}). Voltage is too high.")
+        elif voltage_dec < self.min_voltage:
+            raise ValueError(f"Voltage was set to {voltage_dec}, which is out of the defined voltage range ({self.min_voltage}, {self.max_voltage}). Voltage is too low.")
         else:
             voltage_conv = float(voltage_dec) / self._voltage_conversion
             value = int(round(voltage_conv))
