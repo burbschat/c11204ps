@@ -91,47 +91,73 @@ class CLAWSps:
             print("Serial setup failed with unhandled exception.")
             raise e
 
-    def _write(self, command: str):
+    def _write(self, command: str) -> (int | None):
+        """Write to serial port registered with this instance.
+
+        Args:
+            command: Command to write in string representation.
+
+        Returns:
+            Return value of serial.Serial() write() method.
+        """
         # Write to serial device
         return self._ser.write(command.encode())
 
-    def _read(self, length: int):
-        # Read from serial device
+    def _read(self, length: int) -> bytes:
+        """Read from serial port registered with this instance.
+
+        Args:
+            length: Number of bytes to read.
+
+        Returns:
+            Bytes as returned by serial.Serial() read() method.
+        """
         rx = self._ser.read(length)
         if length != len(rx):  # Not sure if this is really needed, but keep for now
             print(f"Short read: {len(rx)} vs {length}")
         return rx
 
-    def _convert(self, command):
+    def _convert_command(self, command):
         # Converts command to hex form needed for serial data transfer
-        com = command.encode(encoding="utf-8", errors="strict")
-        command_str = binascii.hexlify(com).decode("utf-8")
-        sum_command = sum(bytearray(com))
-        return (command_str, sum_command)
+        # com = command.encode(encoding="utf-8", errors="strict")
+        # command_str = binascii.hexlify(com).decode("utf-8")
+        command_bytes = command.encode()
+        command_hex = command_bytes.hex()  # Get hex representation of command
+        command_checksum = sum(bytearray(command_bytes))  # Compute checksum of command
+        return command_hex, command_checksum
 
-    def _checksum(self, command, value):
-        # Calculate checksum
-        cs = hex(int(self._STX, 16) + command + int(self._ETX, 16) + value)
-        cs = cs.lstrip("0x")
-        cs = cs.upper()
-        cs = cs[-2:]
-        cs_str, cs_sum = self._convert(cs)
-        return (cs_str, cs_sum)
+    # def _total_checksum(self, command_checksum, value_checksum):
+    #     # Calculate checksum
+    #     # cs = hex(int(self._STX, 16) + command_checksum + int(self._ETX, 16) + value_checksum)
+    #     # cs = cs.lstrip("0x")
+    #     # cs = cs.upper()
+    #     # cs = cs[-2:]
+    #     # Extract two characters from command and value checksums. Presumably
+    #     # following the procedure prescribed in the manual.
+    #     cs = str((int(self._STX, 16) + command_checksum + int(self._ETX, 16) + value_checksum).to_bytes().hex()).upper()[-2:]
+    #     cs_hex, cs_sum = self._convert_command(cs)
+    #     return cs_hex, cs_sum
 
     def _send_serial_command(self, command: str, value=0, response_length: int = 8):
         self._ser.flushInput()
         self._ser.flushOutput()
-        command_str, sum_command = self._convert(command)
-        value_hex = hex(value)  # convert voltage from decimal to hexadecimal number
-        value_hex = value_hex.lstrip("0x")
-        value_str, sum_voltage = self._convert(value_hex)  # Value str is empty iv value=0
-        command_str, sum_command = self._convert(command)
-        cs_str, cs_sum = self._checksum(sum_command, sum_voltage)
+        command_hex, command_checksum = self._convert_command(command)
+        # value_hex = hex(value)
+        # value_hex = value_hex.lstrip("0x")
+        value_hex = value.to_bytes().hex()  # convert voltage from decimal to hexadecimal number in str representation
+        voltage_hex, voltage_checksum = self._convert_command(value_hex)  # Value str is empty iv value=0
+
+        # cs_str, cs_sum = self._total_checksum(command_checksum, voltage_checksum)
+
+        # Extract two characters from command and value checksums. Presumably
+        # following the procedure prescribed in the manual.
+        cs = str((int(self._STX, 16) + command_checksum + int(self._ETX, 16) + voltage_checksum).to_bytes().hex()).upper()[-2:]
+        cs_str, _ = self._convert_command(cs)
 
         # Assemble final command
-        command_tosend = self._STX + command_str + value_str + self._ETX + cs_str + self._CR
+        command_tosend = self._STX + command_hex + voltage_hex + self._ETX + cs_str + self._CR
         command_x = "".join(chr(int(command_tosend[n: n + 2], 16)) for n in range(0, len(command_tosend), 2))
-        tx = self._write(command_x)
+        self._write(command_x)
         rx = self._read(response_length)
         return rx
 
