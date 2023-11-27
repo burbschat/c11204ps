@@ -74,6 +74,7 @@ class CLAWSps:
             raise e
 
     def _write(self, command):
+        print(command)
         # Write to serial device
         return self._ser.write(command.encode())
 
@@ -101,14 +102,16 @@ class CLAWSps:
         return (cs_str, cs_sum)
 
     def _send_serial_command(self, command:str, value=0):
+        print("Vval", value)
         self._ser.flushInput()
         self._ser.flushOutput()
         command_str, sum_command = self._convert(command)
         value_hex = hex(value)  # convert voltage from decimal to hexadecimal number
         value_hex = value_hex.lstrip("0x")
         value_str, sum_voltage = self._convert(value_hex)  # Value str is empty iv value=0
-        command_str, sum_command = self._convert("HBV")
+        command_str, sum_command = self._convert(command)
         cs_str, cs_sum = self._checksum(sum_command, sum_voltage)
+        print(cs_str)
 
         # Assemble final command
         command_tosend = self._STX + command_str + value_str + self._ETX + cs_str + self._CR
@@ -124,7 +127,7 @@ class CLAWSps:
             # The usual response is the same as the command, except all
             # lowercase. Commands are usually all uppercase.
             command_response = command.lower()
-        rx = self._send_serial_command(command)
+        rx = self._send_serial_command(command, value)
         if rx[1:4] == command_response.encode():
             return rx
         elif rx[1:4] == b"hxx":
