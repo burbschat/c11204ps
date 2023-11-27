@@ -119,44 +119,27 @@ class CLAWSps:
 
     def _convert_command(self, command):
         # Converts command to hex form needed for serial data transfer
-        # com = command.encode(encoding="utf-8", errors="strict")
-        # command_str = binascii.hexlify(com).decode("utf-8")
         command_bytes = command.encode()
         command_hex = command_bytes.hex()  # Get hex representation of command
         command_checksum = sum(bytearray(command_bytes))  # Compute checksum of command
         return command_hex, command_checksum
 
-    # def _total_checksum(self, command_checksum, value_checksum):
-    #     # Calculate checksum
-    #     # cs = hex(int(self._STX, 16) + command_checksum + int(self._ETX, 16) + value_checksum)
-    #     # cs = cs.lstrip("0x")
-    #     # cs = cs.upper()
-    #     # cs = cs[-2:]
-    #     # Extract two characters from command and value checksums. Presumably
-    #     # following the procedure prescribed in the manual.
-    #     cs = str((int(self._STX, 16) + command_checksum + int(self._ETX, 16) + value_checksum).to_bytes().hex()).upper()[-2:]
-    #     cs_hex, cs_sum = self._convert_command(cs)
-    #     return cs_hex, cs_sum
-
     def _send_serial_command(self, command: str, value=0, response_length: int = 8):
         self._ser.flushInput()
         self._ser.flushOutput()
         command_hex, command_checksum = self._convert_command(command)
-        # value_hex = hex(value)
-        # value_hex = value_hex.lstrip("0x")
-        value_hex = value.to_bytes().hex()  # convert voltage from decimal to hexadecimal number in str representation
+        value_hex = hex(value).lstrip("0x")
         voltage_hex, voltage_checksum = self._convert_command(value_hex)  # Value str is empty iv value=0
 
-        # cs_str, cs_sum = self._total_checksum(command_checksum, voltage_checksum)
-
-        # Extract two characters from command and value checksums. Presumably
-        # following the procedure prescribed in the manual.
-        cs = str((int(self._STX, 16) + command_checksum + int(self._ETX, 16) + voltage_checksum).to_bytes().hex()).upper()[-2:]
-        cs_str, _ = self._convert_command(cs)
+        # Calculate checksum. Presumably following the procedure prescribed in
+        # the manual.
+        total_checksum = hex(int(self._STX, 16) + command_checksum + int(self._ETX, 16) + voltage_checksum)
+        total_checksum = total_checksum.lstrip("0x").upper()[-2:]
+        total_checksum_str, _ = self._convert_command(total_checksum)
 
         # Assemble final command
-        command_tosend = self._STX + command_hex + voltage_hex + self._ETX + cs_str + self._CR
-        command_x = "".join(chr(int(command_tosend[n: n + 2], 16)) for n in range(0, len(command_tosend), 2))
+        command_to_send = self._STX + command_hex + voltage_hex + self._ETX + total_checksum_str + self._CR
+        command_x = "".join(chr(int(command_to_send[n: n + 2], 16)) for n in range(0, len(command_to_send), 2))
         self._write(command_x)
         rx = self._read(response_length)
         return rx
@@ -172,8 +155,6 @@ class CLAWSps:
             command_response = command.lower()
         rx = self._send_serial_command(command, value, response_length)
         if rx[1:4] == command_response.encode():
-            print(type(rx))
-            print(rx)
             return rx
         elif rx[1:4] == b"hxx":
             self._checkerror(rx[4:8])  # Must raise an error!
