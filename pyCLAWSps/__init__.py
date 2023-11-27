@@ -62,7 +62,7 @@ class CLAWSps:
             prt_name = user_def_serial  # Choose based on name like `/dev/ttyUSB0`
 
         try:
-            self._ser = serial_port.Serial(prt_name)  # open serial port
+            self._ser = serial.Serial(prt_name)  # open serial port
             self._ser.baudrate = 38400  # set baudrate
             self._ser.parity = serial_port.PARITY_EVEN  # set parity
             self._ser.stopbits = serial_port.STOPBITS_ONE
