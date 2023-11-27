@@ -29,13 +29,33 @@ import binascii
 
 
 class CLAWSps:
-    # NOTE - The applied voltage can be set upto 90 V by c11204 power supply.
-    # Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
+    """Class defining an interface to a Hamamatsu c11204-01/02 power supply as
+    used with the CLAWS detectors.
+
+    Attributes: 
+        max_voltage: Maximum allowed voltage to be set. Chose wisely depending on your hardware.
+        min_voltage: Minimum allowed voltage to be set.
+    """
     def __init__(self, serial_port: Tuple[str, int] = 0, max_voltage: float = 60, min_voltage: float = 40):
+        """Constructor to set up connection via serial UART interface.
+
+        Args:
+            serial_port: Descriptor of the serial port (as e.g. "/dev/ttyUSB0")
+            or integer indexing all found serial ports that contain 'CP210' or
+            'Q_MPPC_CTL' in their name.
+            max_voltage: Maximum allowed voltage to be set. Chose wisely depending on your hardware.
+            min_voltage: Minimum allowed voltage to be set.
+
+        Raises:
+            SerialException: Raised when no serial ports could be discovered on
+            the system. This is the case when no serial device is connected
+            (any device whatsoever, not only the power supply).
+        """
         # Internally used fixed values
         self._STX = "02"  # start of text
         self._ETX = "03"  # end of text
-        self._CR = "0D"  # delimiter
+        self._CR = "0D"  # carriage return (i.e. command end)
+
         # Conversion factors for readings from the ps
         self._voltage_conversion = 1.812 * 10 ** (-3)  # voltage conversion factor
         self._current_conversion = 4.980 * 10 ** (-3)  # current conversion factor (mA)
@@ -45,8 +65,8 @@ class CLAWSps:
         user_def_sp = serial_port  # Use a more meaningful name for this context
 
         # User defined variables
-        self.max_voltage = max_voltage  # Upper high voltage limit in Volts
-        self.min_voltage = min_voltage
+        self.max_voltage = max_voltage  # in V
+        self.min_voltage = min_voltage  # in V
 
         # Open serial port
         ports = list(serial.tools.list_ports.comports())  # Get available ports
@@ -72,11 +92,11 @@ class CLAWSps:
             print("Serial setup failed with unhandled exception.")
             raise e
 
-    def _write(self, command):
+    def _write(self, command: str):
         # Write to serial device
         return self._ser.write(command.encode())
 
-    def _read(self, length):
+    def _read(self, length: int):
         # Read from serial device
         rx = self._ser.read(length)
         if length != len(rx):  # Not sure if this is really needed, but keep for now
@@ -118,7 +138,7 @@ class CLAWSps:
 
     def _send_serial_command_checkresp(
         self, command: str, value=0, command_response: Tuple[str, None] = None, response_length: int = 8
-    ):
+    ) -> bytes:
         # Additionally check the response and raise an error accordingly if
         # some error is reported.
         if command_response is None:
@@ -127,25 +147,27 @@ class CLAWSps:
             command_response = command.lower()
         rx = self._send_serial_command(command, value, response_length)
         if rx[1:4] == command_response.encode():
+            print(type(rx))
+            print(rx)
             return rx
         elif rx[1:4] == b"hxx":
             self._checkerror(rx[4:8])  # Must raise an error!
         else:
             raise serial.SerialException("Unexpected respose.")
 
-    def hv_disable(self):
+    def hv_disable(self) -> bytes:
         "Set power supply High Voltage OFF"
         return self._send_serial_command_checkresp("HOF")
 
-    def hv_enable(self):
+    def hv_enable(self) -> bytes:
         "Set power supply High Voltage ON"
         return self._send_serial_command_checkresp("HON")
 
-    def reset(self):
+    def reset(self) -> bytes:
         "Reset the power supply"
         return self._send_serial_command_checkresp("HRE")
 
-    def set_voltage(self, voltage_dec):
+    def set_voltage(self, voltage_dec) -> bytes:
         """
         Sets the high voltage output to the voltage specified.
         Arguments
@@ -168,7 +190,7 @@ class CLAWSps:
             value = int(round(voltage_conv))
             return self._send_serial_command_checkresp("HBV", value)
 
-    def get_voltage(self):
+    def get_voltage(self) -> float:
         """
         Returns power supply voltage
         Returns
@@ -180,7 +202,7 @@ class CLAWSps:
         voltage = int(rx[4:8], 16) * self._voltage_conversion
         return voltage
 
-    def get_current(self):
+    def get_current(self) -> float:
         """
         Returns power supply current
         Returns
@@ -192,7 +214,7 @@ class CLAWSps:
         current = int(rx[4:8], 16) * self._current_conversion
         return current
 
-    def get_power(self):
+    def get_power(self) -> float:
         # Gets voltage and current at the same time. This could technically be
         # more precise than calling HGV and HGC in succession, but the effect
         # is probably negligible here.
@@ -201,7 +223,7 @@ class CLAWSps:
         current_mA = int(rx[16:20], 16) * self._current_conversion  # in mA
         return voltage * current_mA  # in mW
 
-    def get_temperature(self):
+    def get_temperature(self) -> float:
         # TODO: The forumla in the command reference I have is a little
         # unclear. Also, for CLAWS currently we use no temperature sensor.
         # Despite of this the status says it's connected, which is a little
@@ -223,7 +245,7 @@ class CLAWSps:
         rx = self._send_serial_command_checkresp("HGS")
         return int(rx[4:8])  # Return the int encoding the status
 
-    def get_status(self):
+    def get_status(self) -> dict:
         "Prints status information on the power supply (similar to getMonitorInfo()) but without voltage and current values"
         status_hex = self.get_status_raw()
         return self.parse_status(status_hex)
