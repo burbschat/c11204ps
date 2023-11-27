@@ -51,6 +51,8 @@ class CLAWSps:
 
         # Open serial port
         ports = list(serial.tools.list_ports.comports())  # Get available ports
+        if len(ports) == 0:
+            raise SerialException("No serial ports found. Check device connections.")
 
         if type(user_def_serial) is int:
             # Choose nth port found of name matching what is expected for the ps
