@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 """
 
-from typing import Tuple
 import serial
 from serial.serialutil import SerialException
 import serial.tools.list_ports
@@ -32,11 +31,11 @@ class CLAWSps:
     """Class defining an interface to a Hamamatsu c11204-01/02 power supply as
     used with the CLAWS detectors.
 
-    Attributes: 
+    Attributes:
         max_voltage: Maximum allowed voltage to be set. Chose wisely depending on your hardware.
         min_voltage: Minimum allowed voltage to be set.
     """
-    def __init__(self, serial_port: Tuple[str, int] = 0, max_voltage: float = 60, min_voltage: float = 40):
+    def __init__(self, serial_port: (str | int) = 0, max_voltage: float = 60, min_voltage: float = 40):
         """Constructor to set up connection via serial UART interface.
 
         Args:
@@ -131,13 +130,13 @@ class CLAWSps:
 
         # Assemble final command
         command_tosend = self._STX + command_str + value_str + self._ETX + cs_str + self._CR
-        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
+        command_x = "".join(chr(int(command_tosend[n: n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(response_length)
         return rx
 
     def _send_serial_command_checkresp(
-        self, command: str, value=0, command_response: Tuple[str, None] = None, response_length: int = 8
+        self, command: str, value=0, command_response: (str | None) = None, response_length: int = 8
     ) -> bytes:
         # Additionally check the response and raise an error accordingly if
         # some error is reported.
