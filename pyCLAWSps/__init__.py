@@ -133,11 +133,11 @@ class CLAWSps:
         else:
             raise serial.SerialException("Unexpected respose.")
 
-    def setHVOff(self):
+    def hv_disable(self):
         "Set power supply High Voltage OFF"
         return self._send_serial_command_checkresp("HOF")
 
-    def setHVOn(self):
+    def hv_enable(self):
         "Set power supply High Voltage ON"
         return self._send_serial_command_checkresp("HON")
 
@@ -145,7 +145,7 @@ class CLAWSps:
         "Reset the power supply"
         return self._send_serial_command_checkresp("HRE")
 
-    def setVoltage(self, voltage_dec):
+    def set_voltage(self, voltage_dec):
         """
         Sets the high voltage output to the voltage specified.
         Arguments
@@ -168,7 +168,7 @@ class CLAWSps:
             value = int(round(voltage_conv))
             return self._send_serial_command_checkresp("HBV", value)
 
-    def getVoltage(self):
+    def get_voltage(self):
         """
         Returns power supply voltage
         Returns
@@ -180,7 +180,7 @@ class CLAWSps:
         voltage = int(rx[4:8], 16) * self._voltage_conversion
         return voltage
 
-    def getCurrent(self):
+    def get_current(self):
         """
         Returns power supply current
         Returns
