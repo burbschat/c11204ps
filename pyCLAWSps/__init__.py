@@ -175,7 +175,9 @@ class CLAWSps:
         float
             Voltage in Volts
         """
-        return self._send_serial_command_checkresp("HGV")
+        rx = self._send_serial_command_checkresp("HGV")
+        voltage = (int(rx[4:8], 16) * self._voltage_conversion)
+        return voltage
 
     def getCurrent(self):
         """
@@ -185,7 +187,9 @@ class CLAWSps:
         float
             Current in mA
         """
-        return self._send_serial_command_checkresp("HGC")
+        rx = self._send_serial_command_checkresp("HGC")
+        current = (int(rx[4:8], 16) * self._current_conversion)
+        return current
 
     def close(self):
         "Close self.serial port"
