@@ -74,7 +74,6 @@ class CLAWSps:
             raise e
 
     def _write(self, command):
-        print(command)
         # Write to serial device
         return self._ser.write(command.encode())
 
@@ -102,7 +101,6 @@ class CLAWSps:
         return (cs_str, cs_sum)
 
     def _send_serial_command(self, command:str, value=0):
-        print("Vval", value)
         self._ser.flushInput()
         self._ser.flushOutput()
         command_str, sum_command = self._convert(command)
@@ -111,7 +109,6 @@ class CLAWSps:
         value_str, sum_voltage = self._convert(value_hex)  # Value str is empty iv value=0
         command_str, sum_command = self._convert(command)
         cs_str, cs_sum = self._checksum(sum_command, sum_voltage)
-        print(cs_str)
 
         # Assemble final command
         command_tosend = self._STX + command_str + value_str + self._ETX + cs_str + self._CR
@@ -194,24 +191,15 @@ class CLAWSps:
         "Close self.serial port"
         self._ser.close()
 
-    def printStatus(self):
-        "Prints status information on the power supply (similar to getMonitorInfo()) but without voltage and current values"
-        self._ser.flushInput()
-        self._ser.flushOutput()
-        command_str, sum_command = self._convert("HGS")
-        CS_str, CS_sum = self._checksum(sum_command, 0)
+    def get_status_raw(self) -> int:
+        # Can format nicely with something like `"%04x" % status_raw`
+        rx = self._send_serial_command_checkresp("HGS")
+        return int(rx[4:8])  # Return the int encoding the status
 
-        # FINAL COMMAND
-        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
-        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
-        tx = self._write(command_x)
-        rx = self._read(8)
-        if rx[1:4] == b"hgs":
-            self.parse_status(rx)
-        elif rx[1:4] == b"hxx":
-            return self._checkerror(rx[4:8])
-        else:
-            print("An error has occured")
+    def get_status(self):
+        "Prints status information on the power supply (similar to getMonitorInfo()) but without voltage and current values"
+        status_hex = self.get_status_raw()
+        return self.parse_status(status_hex)
 
     def _checkerror(self, rx):
         # Raise exceptions indicating errors as described in manual
@@ -236,18 +224,12 @@ class CLAWSps:
                 "Parameter size error: This indicates that the data length of the parameter is outside the specified length"
             )
 
-    def parse_status(self, rx) -> dict:
-        # TODO: define a get_status function to just get status dict, no
-        # arguments required. Do this when cleaning up the funcions calling
-        # this funciton.
-
-        # Status information
-        s = int(rx[4:8])
-
-        print("Status: %04x" % s)
+    def parse_status(self, status:int) -> dict:
+        # Use shorthand to make the following code less convoluted
+        s = status
 
         # TODO: Look up status codes and check if the namings are appropriate
-        d = {
+        status_dict = {
                 "high_voltage_output" : bool(s & 1),
                 "overcurrent_protection":  bool(s & 2),
                 "current_in_spec": not bool(s & 4),
@@ -259,10 +241,7 @@ class CLAWSps:
                 "output_voltage_control": bool(s & 0x1000),
                 "voltage_stable": bool(s & 0x4000)
                 }
-
-        print(d)
-
-    ##### COMMANDS OF POWER SUPPLY ####
+        return status_dict
 
     def help(self):
         print("printMonitorInfo() - Prints information on the power supply status, voltage (V) and current (mA) values")
