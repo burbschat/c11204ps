@@ -201,6 +201,19 @@ class CLAWSps:
         current_mA = int(rx[16:20], 16) * self._current_conversion  # in mA
         return voltage * current_mA  # in mW
 
+    def get_temperature(self):
+        # TODO: The forumla in the command reference I have is a little
+        # unclear. Also, for CLAWS currently we use no temperature sensor.
+        # Despite of this the status says it's connected, which is a little
+        # concerning. Investigate this and maybe implement this function.
+        # Also consider funcitons for setting temperature compensation modes
+        # for completness.
+
+        # rx = self._send_serial_command_checkresp("HGT")
+        # temperature = self._temperature_conversion(int(rx[4:8], 16))
+        # return temperature
+        raise NotImplementedError
+
     def close(self):
         "Close self.serial port"
         self._ser.close()
