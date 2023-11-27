@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 """
 
+from typing import Tuple
 import serial
 import serial.tools.list_ports
 import binascii
@@ -28,51 +29,53 @@ import numpy as np
 
 
 class CLAWSps:
-    def __init__(self):
-        self.ser = 0
-        "Initialise the c11204 power supply. Make sure to connect power supply to the PC before initializing"
-        # VARIABLES
-        self.V_conversion = 1.812 * 10 ** (-3)  # voltage conversion factor
-        self.I_conversion = 4.980 * 10 ** (-3)  # current conversion factor (mA)
+    # NOTE - The applied voltage can be set upto 90 V by c11204 power supply.
+    # Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
+    def __init__(self, serial:Tuple[str, int], max_voltage:float = 60):
+        # Internally used fixed values
+        self._STX = "02"  # start of text
+        self._ETX = "03"  # end of text
+        self._CR = "0D"  # delimiter
+        # Conversion factors for readings from the ps
+        self._voltage_conversion = 1.812 * 10 ** (-3)  # voltage conversion factor
+        self._current_conversion = 4.980 * 10 ** (-3)  # current conversion factor (mA)
 
-        # FIXED VALUES
-        self.STX = "02"  # start of text
-        self.ETX = "03"  # end of text
-        self.CR = "0D"  # delimiter
+        # Internally used variables
+        self._ser = 0  # Reference to serial port
+        user_def_serial = serial  # Use a more meaningful name for this context
 
-        # USER DEFINED VARIABLES
-        self.V_lim_upper = 60  # Upper high voltage limit in Volts
-        """ NOTE - The applied voltage can be set upto 90 V by c11204 power supply.
-                   Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use"""
+        # User defined variables
+        self.max_voltage = max_voltage  # Upper high voltage limit in Volts
 
-        # OPEN SERIAL PORT
-        ports = list(serial.tools.list_ports.comports())
-        if len(ports) == 0:
-            self.logger.warning("Could not find any serial device!")
-        for p in ports:
-            print("Port %s" % p)
-            if "CP210" in p[1]:
-                prt = p[0]
-            elif "Q_MPPC_CTL" in p[1]:
-                prt = p[0]
+        # Open serial port
+        ports = list(serial.tools.list_ports.comports())  # Get available ports
+
+        if type(user_def_serial) is int:
+            # Choose nth port found of name matching what is expected for the ps
+            ps_ports = [p for p in ports if ("CP210" in p[1]) or ("Q_MPPC_CTL" in p[1])]
+            prt_name = ps_ports[user_def_serial][0]
+        elif type(user_def_serial) is str:
+            prt_name = user_def_serial  # Choose based on name like `/dev/ttyUSB0`
+
         try:
-            self.ser = serial.Serial(prt)  # open serial port
-            self.ser.baudrate = 38400  # set baudrate
-            self.ser.parity = serial.PARITY_EVEN  # set parity
-            self.ser.stopbits = serial.STOPBITS_ONE
-            self.ser.bytesize = serial.EIGHTBITS
-            self.ser.timeout = 2.0
-            print(self.ser.name)  # check which port was really used
-        except NameError:
-            print("No CP210x Controller was found. Check USB connection")
+            self._ser = serial.Serial(prt_name)  # open serial port
+            self._ser.baudrate = 38400  # set baudrate
+            self._ser.parity = serial.PARITY_EVEN  # set parity
+            self._ser.stopbits = serial.STOPBITS_ONE
+            self._ser.bytesize = serial.EIGHTBITS
+            self._ser.timeout = 2.0
+            print(f"Setup finished for serial prt '{self._ser.name}'")  # Confirm the used serial port
+        except Exception as e:
+            print("Serial setup failed with unhandled exception.")
+            raise e
 
     def _write(self, command):
         data = command.encode()
         # print("command %s encoded %s" % (command, data))
-        return self.ser.write(command.encode())
+        return self._ser.write(command.encode())
 
     def _read(self, length):
-        rx = self.ser.read(length)
+        rx = self._ser.read(length)
         if length == len(rx):
             procd = [c for c in rx]
             # print("rec: %s" % procd)
@@ -89,7 +92,7 @@ class CLAWSps:
 
     def _checksum(self, sum_command, sum_voltage):
         # CHECKSUM CALCULATION
-        CS = hex(int(self.STX, 16) + sum_command + int(self.ETX, 16) + sum_voltage)
+        CS = hex(int(self._STX, 16) + sum_command + int(self._ETX, 16) + sum_voltage)
         CS = CS.lstrip("0x")
         CS = CS.upper()
         CS = CS[-2:]
@@ -192,19 +195,19 @@ class CLAWSps:
 
     def printMonitorInfo(self):
         "Prints information on the power supply status, voltage and current values"
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HPO")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(28)
         if rx[1:4] == b"hpo":
-            volt_out = int(rx[12:16], 16) * self.V_conversion
-            mA_out = int(rx[16:20], 16) * self.I_conversion
+            volt_out = int(rx[12:16], 16) * self._voltage_conversion
+            mA_out = int(rx[16:20], 16) * self._current_conversion
 
             self._checkstatus(rx)
             print("High Voltage Output      :   {} V".format(volt_out))
@@ -223,19 +226,19 @@ class CLAWSps:
             (voltage, current)
             Voltage in Volts and current in mA.
         """
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HPO")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(28)
         if rx[1:4] == b"hpo":
-            volt_out = int(rx[12:16], 16) * self.V_conversion
-            mA_out = int(rx[16:20], 16) * self.I_conversion
+            volt_out = int(rx[12:16], 16) * self._voltage_conversion
+            mA_out = int(rx[16:20], 16) * self._current_conversion
             return (volt_out, mA_out)
         elif rx[1:4] == b"hxx":
             return self._checkerror(rx[4:8])
@@ -244,13 +247,13 @@ class CLAWSps:
 
     def setHVOff(self):
         "Set power supply High Voltage OFF"
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HOF")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(8)
@@ -263,13 +266,13 @@ class CLAWSps:
 
     def setHVOn(self):
         "Set power supply High Voltage ON"
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HON")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(8)
@@ -282,13 +285,13 @@ class CLAWSps:
 
     def reset(self):
         "Reset the power supply"
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HRE")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(8)
@@ -309,14 +312,14 @@ class CLAWSps:
             NOTE -  The applied voltage can be set upto 90 V by c11204 power supply.
                     Change the upper voltage limit (self.V_lim_upper) as required by the MPPC in use
         """
-        self.ser.flushInput()
-        self.ser.flushOutput()
-        if voltage_dec > self.V_lim_upper:
+        self._ser.flushInput()
+        self._ser.flushOutput()
+        if voltage_dec > self.max_voltage:
             print("Voltage is too high")
         elif voltage_dec < 40:
             print("Voltage is too low")
         else:
-            voltage_conv = float(voltage_dec) / self.V_conversion
+            voltage_conv = float(voltage_dec) / self._voltage_conversion
             voltage = int(round(voltage_conv))
             voltage_hex = hex(voltage)  # convert voltage from decimal to hexadecimal number
             voltage_hex = voltage_hex.lstrip("0x")
@@ -325,7 +328,7 @@ class CLAWSps:
             CS_str, CS_sum = self._checksum(sum_command, sum_voltage)
 
             # FINAL COMMAND
-            command_tosend = self.STX + command_str + voltage_str + self.ETX + CS_str + self.CR
+            command_tosend = self._STX + command_str + voltage_str + self._ETX + CS_str + self._CR
             command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
             # print("send command:" + command_x)
             tx = self._write(command_x)
@@ -345,18 +348,18 @@ class CLAWSps:
         float
             Voltage in Volts
         """
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HGV")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(8)
         if rx[1:4] == b"hgv":
-            volt_out = int(rx[4:8], 16) * self.V_conversion
+            volt_out = int(rx[4:8], 16) * self._voltage_conversion
             return volt_out
         elif rx[1:4] == b"hxx":
             return self._checkerror(rx[4:8])
@@ -371,18 +374,18 @@ class CLAWSps:
         float
             Current in mA
         """
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HGC")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(8)
         if rx[1:4] == b"hgc":
-            I_out = int(rx[4:8], 16) * self.I_conversion
+            I_out = int(rx[4:8], 16) * self._current_conversion
             return I_out
         elif rx[1:4] == b"hxx":
             return self._checkerror(rx[4:8])
@@ -391,13 +394,13 @@ class CLAWSps:
 
     def printStatus(self):
         "Prints status information on the power supply (similar to getMonitorInfo()) but without voltage and current values"
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self._ser.flushInput()
+        self._ser.flushOutput()
         command_str, sum_command = self._convert("HGS")
         CS_str, CS_sum = self._checksum(sum_command, 0)
 
         # FINAL COMMAND
-        command_tosend = self.STX + command_str + self.ETX + CS_str + self.CR
+        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
         rx = self._read(8)
@@ -410,4 +413,4 @@ class CLAWSps:
 
     def close(self):
         "Close self.serial port"
-        self.ser.close()
+        self._ser.close()
