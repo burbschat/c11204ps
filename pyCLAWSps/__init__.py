@@ -187,6 +187,15 @@ class CLAWSps:
         current = (int(rx[4:8], 16) * self._current_conversion)
         return current
 
+    def get_power(self):
+        # Gets voltage and current at the same time. This could technically be
+        # more precise than calling HGV and HGC in succession, but the effect
+        # is probably negligible here.
+        rx = self._send_serial_command_checkresp("HPO")
+        voltage = int(rx[12:16], 16) * self._voltage_conversion  # in V
+        current_mA = int(rx[16:20], 16) * self._current_conversion  # in mA
+        return voltage * current_mA  # in mW
+
     def close(self):
         "Close self.serial port"
         self._ser.close()
@@ -242,70 +251,3 @@ class CLAWSps:
                 "voltage_stable": bool(s & 0x4000)
                 }
         return status_dict
-
-    def help(self):
-        print("printMonitorInfo() - Prints information on the power supply status, voltage (V) and current (mA) values")
-        print("getPowerInfo() - Returns the power supply voltage (V) and current (mA) values as tuple")
-        print("setHVOff() - Set power supply High Voltage OFF")
-        print("setHVOn() - Set power supply High Voltage ON")
-        print("reset()  - Reset the power supply")
-        print("setVoltage(voltage_dec) - Sets the high voltage output to the voltage specified (V)")
-        print("getVoltage() - Returns power supply voltage in Volts")
-        print("getCurrent() - Returns power supply current in mA")
-        print(
-            "printStatus() - Prints status information on the power supply (similar to getMonitorInfo()) but without voltage and current values"
-        )
-        print("close() - Close serial port")
-        print("help() - This help")
-
-    def printMonitorInfo(self):
-        "Prints information on the power supply status, voltage and current values"
-        self._ser.flushInput()
-        self._ser.flushOutput()
-        command_str, sum_command = self._convert("HPO")
-        CS_str, CS_sum = self._checksum(sum_command, 0)
-
-        # FINAL COMMAND
-        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
-        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
-        tx = self._write(command_x)
-        rx = self._read(28)
-        if rx[1:4] == b"hpo":
-            volt_out = int(rx[12:16], 16) * self._voltage_conversion
-            mA_out = int(rx[16:20], 16) * self._current_conversion
-
-            self.parse_status(rx)
-            print("High Voltage Output      :   {} V".format(volt_out))
-            print("Output current           :   {} mA".format(mA_out))
-        elif rx[1:4] == b"hxx":
-            return self._checkerror(rx[4:8])
-        else:
-            print("An error has occured")
-
-    def getPowerInfo(self):
-        """
-        Returns the power supply voltage and current values.
-        Returns
-        -------
-        tuple
-            (voltage, current)
-            Voltage in Volts and current in mA.
-        """
-        self._ser.flushInput()
-        self._ser.flushOutput()
-        command_str, sum_command = self._convert("HPO")
-        CS_str, CS_sum = self._checksum(sum_command, 0)
-
-        # FINAL COMMAND
-        command_tosend = self._STX + command_str + self._ETX + CS_str + self._CR
-        command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
-        tx = self._write(command_x)
-        rx = self._read(28)
-        if rx[1:4] == b"hpo":
-            volt_out = int(rx[12:16], 16) * self._voltage_conversion
-            mA_out = int(rx[16:20], 16) * self._current_conversion
-            return (volt_out, mA_out)
-        elif rx[1:4] == b"hxx":
-            return self._checkerror(rx[4:8])
-        else:
-            print("An error has occured")
