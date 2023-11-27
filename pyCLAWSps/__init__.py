@@ -100,7 +100,7 @@ class CLAWSps:
         cs_str, cs_sum = self._convert(cs)
         return (cs_str, cs_sum)
 
-    def _send_serial_command(self, command:str, value=0):
+    def _send_serial_command(self, command:str, value=0, response_length:int = 8):
         self._ser.flushInput()
         self._ser.flushOutput()
         command_str, sum_command = self._convert(command)
@@ -114,17 +114,17 @@ class CLAWSps:
         command_tosend = self._STX + command_str + value_str + self._ETX + cs_str + self._CR
         command_x = "".join(chr(int(command_tosend[n : n + 2], 16)) for n in range(0, len(command_tosend), 2))
         tx = self._write(command_x)
-        rx = self._read(8)
+        rx = self._read(response_length)
         return rx
        
-    def _send_serial_command_checkresp(self, command:str, value=0, command_response:Tuple[str, None] = None):
+    def _send_serial_command_checkresp(self, command:str, value=0, command_response:Tuple[str, None] = None, response_length:int = 8):
         # Additionally check the response and raise an error accordingly if
         # some error is reported.
         if command_response is None:
             # The usual response is the same as the command, except all
             # lowercase. Commands are usually all uppercase.
             command_response = command.lower()
-        rx = self._send_serial_command(command, value)
+        rx = self._send_serial_command(command, value, response_length)
         if rx[1:4] == command_response.encode():
             return rx
         elif rx[1:4] == b"hxx":
@@ -191,7 +191,7 @@ class CLAWSps:
         # Gets voltage and current at the same time. This could technically be
         # more precise than calling HGV and HGC in succession, but the effect
         # is probably negligible here.
-        rx = self._send_serial_command_checkresp("HPO")
+        rx = self._send_serial_command_checkresp("HPO", response_length=28)
         voltage = int(rx[12:16], 16) * self._voltage_conversion  # in V
         current_mA = int(rx[16:20], 16) * self._current_conversion  # in mA
         return voltage * current_mA  # in mW
