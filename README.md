@@ -40,4 +40,4 @@ print(ps.get_status())  # Print dict of status flags for the power supply
 ```
 
 ## License
-`c11204ps` is distributed under the terms of the [GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html) license.
+c11204ps is distributed under the terms of the [GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html) license.
