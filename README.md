@@ -1,24 +1,30 @@
-# pyCLAWSps
+# c11204ps
+[![PyPI - Version](https://img.shields.io/pypi/v/c11204ps.svg)](https://pypi.org/project/c11204ps)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/c11204ps.svg)](https://pypi.org/project/c11204ps)
 
 Python package for controlling a Hamamatsu c11204-01/02 power supply.
+This is essentially a re-write of [`pyCLAWSps`](https://github.com/malindasds/pyCLAWSps).
+While the `pyCLAWSps` was fine for basic control of a c11204 power supply, this
+package aims to provide a more general, streamlined python interface.
 
 ## Installation
-This version of the package is not yet distributed to the package index.
-The existing entry of `pyCLAWSps` is a much older version. This code is a
-hopefully cleaner rewrite of the original `pyCLAWSps` code.
+This package should be in the package index and installable with pip.
+```console
+pip install c11204ps
+```
 
 ## Compatibility
 The code was developed for a power supply board for the CLAWS scintillation
-detectors and was only ever tested in this context. However, technically
-essentially all functionality should be general, as long as the serial UART
-interface of the c11204-01/02 can be accessed.
+detectors and was only ever tested in this context. However, technically pretty
+much all functionality should be general, making this package usable as long as
+the c11204-01/02 serial UART interface can be accessed.
 
 ## Using the package
 Simply instantiate a `C11204PS` object and call any of the implemented functions.
 The functions themselves should be documented with docstrings in the code.
 An example to set and check the voltage is the following:
 ```py
-from pyCLAWSps import C11204PS
+from c11204ps import C11204PS
 # Call with no arguments initializes with first serial port with name
 # containing 'CP210' or 'Q_MPPC_CTL'.
 ps = C11204PS()  
@@ -32,3 +38,6 @@ print(ps.get_voltage())  # Should read close to set voltage
 
 print(ps.get_status())  # Print dict of status flags for the power supply
 ```
+
+## License
+`c11204ps` is distributed under the terms of the [GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html) license.
