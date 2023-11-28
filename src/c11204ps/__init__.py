@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-present burbschat <b.urbschat@tum.de>
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Python interface for Hamamatsu c11204-01/02 power supply.
 
 This essentially wraps the serial UART interface provided by the manufacturer.
@@ -6,12 +10,11 @@ scintillation detectors. The code was only ever tested with the CLAWS hardware.
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
+Foundation, version 3.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program. If not, see `https://www.gnu.org/licenses/`.
