@@ -13,6 +13,14 @@ This package should be in the package index and installable with pip.
 pip install c11204ps
 ```
 
+Alternatively build with `hatch` and install from `.whl`.
+Run from the root of this repository
+```console
+hatch build
+pip install ./dist/c11204ps-0.2.0-py3-none-any.whl
+```
+Adjust filename for current verison if neccessary.
+
 ## Compatibility
 The code was developed for a power supply board for the CLAWS scintillation
 detectors and was only ever tested in this context. However, technically pretty
