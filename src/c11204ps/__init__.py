@@ -84,7 +84,6 @@ class C11204PS:
             self._ser.stopbits = serial.STOPBITS_ONE
             self._ser.bytesize = serial.EIGHTBITS
             self._ser.timeout = 2.0
-            print(f"Setup finished for serial prt '{self._ser.name}'")  # Confirm the used serial port
         except Exception as e:
             print("Serial setup failed with unhandled exception.")
             raise e
@@ -111,8 +110,8 @@ class C11204PS:
             Bytes as returned by serial.Serial() read() method.
         """
         rx = self._ser.read(length)
-        if length != len(rx):  # Not sure if this is really needed, but keep for now
-            print(f"Short read: {len(rx)} vs {length}")
+        if length != len(rx):
+            print(f"Warning: Short read ({len(rx)} received but {length} requested)")
         return rx
 
     def _convert_command(self, command: str) -> tuple[str, int]:
@@ -361,7 +360,7 @@ class C11204PS:
         self._ser.close()
 
     def get_status_raw(self) -> int:
-        """Get status of the power supply. 
+        """Get status of the power supply.
 
         The status is encoded in an integer value which has to be parsed to
         extract the different status flags.
