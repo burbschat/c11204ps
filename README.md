@@ -8,7 +8,7 @@ While the `pyCLAWSps` was fine for basic control of a c11204 power supply, this
 package aims to provide a more general, streamlined python interface.
 
 For the reason of this being based on `pyCLAWSps`, the version count for this
-package starts at `2.0`.
+package starts at `0.2.0`.
 
 ## Installation
 This package should be in the package index and installable with pip.
